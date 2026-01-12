@@ -2,6 +2,11 @@ import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+import os
+
+TOKEN = os.getenv("TOKEN")
+WEBAPP_URL = os.getenv("WEBAPP_URL")
+
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
