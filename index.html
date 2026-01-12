@@ -47,7 +47,6 @@ h2 {
   gap: 12px;
 }
 
-/* 🔒 КЛЮЧ: блокируем клики полностью */
 .board.locked {
   pointer-events: none;
 }
@@ -106,7 +105,6 @@ const restartBtn = document.getElementById("restart");
 function render() {
   boardEl.innerHTML = "";
 
-  // 🔒 физически блокируем поле
   boardEl.classList.toggle("locked", gameOver);
 
   board.forEach((v, i) => {
@@ -200,34 +198,32 @@ function move(i) {
 }
 
 function endGame(result) {
-  if (gameOver) return; // 🔒 финальный предохранитель
+  if (gameOver) return;
   gameOver = true;
 
-  let text = "";
   let payload = "";
 
   if (result === "win") {
     const promo = Math.floor(10000 + Math.random() * 90000);
-    text = `🎉 Победа! Промокод: ${promo}`;
     payload = `win:${promo}`;
+    statusEl.textContent = `🎉 Победа! Промокод: ${promo}`;
   }
 
   if (result === "lose") {
-    text = "😔 Проигрыш";
     payload = "lose";
+    statusEl.textContent = "😔 Проигрыш";
   }
 
   if (result === "draw") {
-    text = "🤍 Ничья";
     payload = "draw";
+    statusEl.textContent = "🤍 Ничья";
   }
 
-  statusEl.textContent = text;
-  restartBtn.style.display = "block";
-  render();
-
   tg.sendData(payload);
+
+  setTimeout(() => tg.close(), 100);
 }
+
 
 restartBtn.onclick = () => {
   board = Array(9).fill(EMPTY);
