@@ -7,9 +7,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
@@ -22,12 +20,12 @@ body {
 }
 
 .card {
-  background: #ffffff;
+  background: #fff;
   border-radius: 24px;
-  padding: 20px;
+  padding: 24px;
   width: 320px;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  box-shadow: 0 10px 30px rgba(0,0,0,.15);
 }
 
 h2 {
@@ -35,15 +33,11 @@ h2 {
   color: #5f4b8b;
 }
 
-#status {
-  margin-top: 10px;
-  min-height: 24px;
-  font-size: 14px;
-  color: #444;
+#content {
+  margin-top: 20px;
 }
 
 .board {
-  margin: 20px 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
@@ -59,11 +53,13 @@ h2 {
   align-items: center;
   cursor: pointer;
   user-select: none;
-  transition: transform 0.1s ease;
 }
 
-.cell:active {
-  transform: scale(0.95);
+.result {
+  font-size: 18px;
+  font-weight: 500;
+  color: #444;
+  margin: 40px 0;
 }
 
 button {
@@ -72,10 +68,10 @@ button {
   border: none;
   border-radius: 16px;
   background: #e5989b;
-  color: white;
+  color: #fff;
   font-size: 16px;
   cursor: pointer;
-  display: none;
+  margin-top: 16px;
 }
 </style>
 </head>
@@ -83,9 +79,7 @@ button {
 <body>
 <div class="card">
   <h2>🌸 Крестики-нолики</h2>
-  <div id="status">Ваш ход</div>
-  <div class="board" id="board"></div>
-  <button id="restart">🔁 Начать игру</button>
+  <div id="content"></div>
 </div>
 
 <script>
@@ -95,16 +89,26 @@ tg.expand();
 const EMPTY = "";
 const PLAYER = "❌";
 const BOT = "⭕";
+const AI_MISTAKE_CHANCE = 0.35;
 
-let board = Array(9).fill(EMPTY);
+let board;
 let gameOver = false;
 
-const boardEl = document.getElementById("board");
-const statusEl = document.getElementById("status");
-const restartBtn = document.getElementById("restart");
+const contentEl = document.getElementById("content");
 
-function render() {
-  boardEl.innerHTML = "";
+function startGame() {
+  board = Array(9).fill(EMPTY);
+  gameOver = false;
+  renderBoard();
+}
+
+function renderBoard() {
+  contentEl.innerHTML = `
+    <div class="board" id="board"></div>
+  `;
+
+  const boardEl = document.getElementById("board");
+
   board.forEach((v, i) => {
     const cell = document.createElement("div");
     cell.className = "cell";
@@ -112,6 +116,14 @@ function render() {
     cell.onclick = () => move(i);
     boardEl.appendChild(cell);
   });
+}
+
+function renderResult(text, payload) {
+  contentEl.innerHTML = `
+    <div class="result">${text}</div>
+    <button onclick="startGame()">🔁 Начать игру</button>
+  `;
+  tg.sendData(payload);
 }
 
 function checkWin(sym) {
@@ -123,7 +135,7 @@ function checkWin(sym) {
   return wins.some(line => line.every(i => board[i] === sym));
 }
 
-function aiMove() {
+function smartMove() {
   const lines = [
     [0,1,2],[3,4,5],[6,7,8],
     [0,3,6],[1,4,7],[2,5,8],
@@ -149,81 +161,53 @@ function aiMove() {
   return board.findIndex(c => c === EMPTY);
 }
 
+function dumbMove() {
+  const free = board
+    .map((v, i) => v === EMPTY ? i : null)
+    .filter(i => i !== null);
+
+  return free.length
+    ? free[Math.floor(Math.random() * free.length)]
+    : -1;
+}
+
 function move(i) {
-  if (board[i] !== EMPTY || gameOver) return;
+  if (gameOver || board[i] !== EMPTY) return;
 
   board[i] = PLAYER;
-  render();
+  renderBoard();
 
   if (checkWin(PLAYER)) {
     gameOver = true;
-    return finish("win");
+    const promo = Math.floor(10000 + Math.random() * 90000);
+    return renderResult(`🎉 Победа!<br>Промокод: <b>${promo}</b>`, `win:${promo}`);
   }
 
   if (!board.includes(EMPTY)) {
     gameOver = true;
-    return finish("draw");
+    return renderResult("🤍 Ничья", "draw");
   }
 
-  if (Math.random() < 0.15) {
-    const free = board
-      .map((v, i) => v === EMPTY ? i : null)
-      .filter(i => i !== null);
-    if (free.length) {
-      board[free[Math.floor(Math.random() * free.length)]] = BOT;
-    }
-  } else {
-    const ai = aiMove();
-    if (ai !== -1) board[ai] = BOT;
-  }
+  const aiIndex = Math.random() < AI_MISTAKE_CHANCE
+    ? dumbMove()
+    : smartMove();
 
-  render();
+  if (aiIndex !== -1) board[aiIndex] = BOT;
+  renderBoard();
 
   if (checkWin(BOT)) {
     gameOver = true;
-    return finish("lose");
+    return renderResult("😔 Проигрыш", "lose");
   }
 
   if (!board.includes(EMPTY)) {
     gameOver = true;
-    return finish("draw");
+    return renderResult("🤍 Ничья", "draw");
   }
 }
 
-function finish(result) {
-  let text = "";
-  let payload = "";
-
-  if (result === "win") {
-    const promo = Math.floor(10000 + Math.random() * 90000);
-    text = `🎉 Победа! Промокод: ${promo}`;
-    payload = `win:${promo}`;
-  }
-
-  if (result === "lose") {
-    text = "😔 Проигрыш";
-    payload = "lose";
-  }
-
-  if (result === "draw") {
-    text = "🤍 Ничья";
-    payload = "draw";
-  }
-
-  statusEl.textContent = text;
-  restartBtn.style.display = "block";
-  tg.sendData(payload);
-}
-
-restartBtn.onclick = () => {
-  board = Array(9).fill(EMPTY);
-  gameOver = false;
-  statusEl.textContent = "Ваш ход";
-  restartBtn.style.display = "none";
-  render();
-};
-
-render();
+// старт
+startGame();
 </script>
 </body>
 </html>
