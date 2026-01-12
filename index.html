@@ -5,22 +5,79 @@
 <title>Крестики-нолики</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
 <style>
 * { box-sizing: border-box; }
+
 body {
-  margin:0; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Inter,sans-serif;
-  background: linear-gradient(135deg,#fde2e4,#e4c1f9);
-  display:flex; justify-content:center; align-items:center; height:100vh;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  background: linear-gradient(135deg, #fde2e4, #e4c1f9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
 }
-.card { background:#fff; border-radius:24px; padding:20px; width:320px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.15);}
-h2 { margin:0; color:#5f4b8b; }
-#status { margin-top:10px; min-height:24px; font-size:14px; color:#444; }
-.board { margin:20px 0; display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-.board.locked { pointer-events:none; }
-.cell { height:80px; border-radius:16px; background:#f7f7f7; font-size:36px; display:flex; justify-content:center; align-items:center; cursor:pointer; user-select:none; }
-button { width:100%; padding:14px; border:none; border-radius:16px; background:#e5989b; color:#fff; font-size:16px; cursor:pointer; display:none; }
+
+.card {
+  background: #fff;
+  border-radius: 24px;
+  padding: 20px;
+  width: 320px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,.15);
+}
+
+h2 {
+  margin: 0;
+  color: #5f4b8b;
+}
+
+#status {
+  margin-top: 10px;
+  min-height: 24px;
+  font-size: 14px;
+  color: #444;
+}
+
+.board {
+  margin: 20px 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* 🔒 КЛЮЧ: блокируем клики полностью */
+.board.locked {
+  pointer-events: none;
+}
+
+.cell {
+  height: 80px;
+  border-radius: 16px;
+  background: #f7f7f7;
+  font-size: 36px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 16px;
+  background: #e5989b;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: none;
+}
 </style>
 </head>
+
 <body>
 <div class="card">
   <h2>🌸 Крестики-нолики</h2>
@@ -33,87 +90,150 @@ button { width:100%; padding:14px; border:none; border-radius:16px; background:#
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const EMPTY=""; const PLAYER="❌"; const BOT="⭕";
-let board=Array(9).fill(EMPTY); let gameOver=false;
-const AI_MISTAKE_CHANCE=0.35;
+const EMPTY = "";
+const PLAYER = "❌";
+const BOT = "⭕";
 
-const boardEl=document.getElementById("board");
-const statusEl=document.getElementById("status");
-const restartBtn=document.getElementById("restart");
+let board = Array(9).fill(EMPTY);
+let gameOver = false;
+
+const AI_MISTAKE_CHANCE = 0.35;
+
+const boardEl = document.getElementById("board");
+const statusEl = document.getElementById("status");
+const restartBtn = document.getElementById("restart");
 
 function render() {
-  boardEl.innerHTML="";
-  boardEl.classList.toggle("locked",gameOver);
-  board.forEach((v,i)=>{
-    const cell=document.createElement("div");
-    cell.className="cell";
-    cell.textContent=v;
-    if(!gameOver && v===EMPTY) cell.onclick=()=>move(i);
+  boardEl.innerHTML = "";
+
+  // 🔒 физически блокируем поле
+  boardEl.classList.toggle("locked", gameOver);
+
+  board.forEach((v, i) => {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.textContent = v;
+
+    if (!gameOver && v === EMPTY) {
+      cell.onclick = () => move(i);
+    }
+
     boardEl.appendChild(cell);
   });
 }
 
-function checkWin(sym){
-  const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  return wins.some(line=>line.every(i=>board[i]===sym));
+function checkWin(sym) {
+  const wins = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  return wins.some(line => line.every(i => board[i] === sym));
 }
 
-function smartMove(){
-  const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  for(let sym of [BOT,PLAYER]){
-    for(let line of lines){
-      const vals=line.map(i=>board[i]);
-      if(vals.filter(v=>v===sym).length===2 && vals.includes(EMPTY)) return line[vals.indexOf(EMPTY)];
+function smartMove() {
+  const lines = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  for (let sym of [BOT, PLAYER]) {
+    for (let line of lines) {
+      const vals = line.map(i => board[i]);
+      if (vals.filter(v => v === sym).length === 2 && vals.includes(EMPTY)) {
+        return line[vals.indexOf(EMPTY)];
+      }
     }
   }
-  if(board[4]===EMPTY) return 4;
-  const corners=[0,2,6,8].filter(i=>board[i]===EMPTY);
-  if(corners.length) return corners[Math.floor(Math.random()*corners.length)];
-  return board.findIndex(c=>c===EMPTY);
+
+  if (board[4] === EMPTY) return 4;
+
+  const corners = [0,2,6,8].filter(i => board[i] === EMPTY);
+  if (corners.length) {
+    return corners[Math.floor(Math.random() * corners.length)];
+  }
+
+  return board.findIndex(c => c === EMPTY);
 }
 
-function dumbMove(){
-  const free=board.map((v,i)=>v===EMPTY?i:null).filter(i=>i!==null);
-  return free.length?free[Math.floor(Math.random()*free.length)]:-1;
+function dumbMove() {
+  const free = board
+    .map((v, i) => v === EMPTY ? i : null)
+    .filter(i => i !== null);
+
+  return free.length
+    ? free[Math.floor(Math.random() * free.length)]
+    : -1;
 }
 
-function move(i){
-  if(gameOver || board[i]!==EMPTY) return;
-  board[i]=PLAYER;
+function move(i) {
+  if (gameOver || board[i] !== EMPTY) return;
+
+  board[i] = PLAYER;
   render();
-  if(checkWin(PLAYER)) return endGame("win");
-  if(!board.includes(EMPTY)) return endGame("draw");
 
-  const aiIndex=Math.random()<AI_MISTAKE_CHANCE?dumbMove():smartMove();
-  if(aiIndex!==-1) board[aiIndex]=BOT;
-  render();
-  if(checkWin(BOT)) return endGame("lose");
-  if(!board.includes(EMPTY)) return endGame("draw");
+  if (checkWin(PLAYER)) {
+    return endGame("win");
+  }
+
+  if (!board.includes(EMPTY)) {
+    return endGame("draw");
+  }
+
+  const aiIndex = Math.random() < AI_MISTAKE_CHANCE
+    ? dumbMove()
+    : smartMove();
+
+  if (aiIndex !== -1) {
+    board[aiIndex] = BOT;
+    render();
+  }
+
+  if (checkWin(BOT)) {
+    return endGame("lose");
+  }
+
+  if (!board.includes(EMPTY)) {
+    return endGame("draw");
+  }
 }
 
-function endGame(result){
-  if(gameOver) return;
-  gameOver=true;
-  let payload={result};
-  let text="";
-  if(result==="win"){
-    const promo=Math.floor(10000+Math.random()*90000);
-    payload["promo"]=promo;
-    text=`🎉 Победа! Промокод: ${promo}`;
-  } else if(result==="lose"){ text="😔 Проигрыш"; }
-    else if(result==="draw"){ text="🤍 Ничья"; }
+function endGame(result) {
+  if (gameOver) return; // 🔒 финальный предохранитель
+  gameOver = true;
 
-  statusEl.textContent=text;
-  restartBtn.style.display="block";
+  let text = "";
+  let payload = "";
+
+  if (result === "win") {
+    const promo = Math.floor(10000 + Math.random() * 90000);
+    text = `🎉 Победа! Промокод: ${promo}`;
+    payload = `win:${promo}`;
+  }
+
+  if (result === "lose") {
+    text = "😔 Проигрыш";
+    payload = "lose";
+  }
+
+  if (result === "draw") {
+    text = "🤍 Ничья";
+    payload = "draw";
+  }
+
+  statusEl.textContent = text;
+  restartBtn.style.display = "block";
   render();
-  tg.sendData(JSON.stringify(payload));
+
+  tg.sendData(payload);
 }
 
-restartBtn.onclick=()=>{
-  board=Array(9).fill(EMPTY);
-  gameOver=false;
-  restartBtn.style.display="none";
-  statusEl.textContent="Ваш ход";
+restartBtn.onclick = () => {
+  board = Array(9).fill(EMPTY);
+  gameOver = false;
+  restartBtn.style.display = "none";
+  statusEl.textContent = "Ваш ход";
   render();
 };
 
