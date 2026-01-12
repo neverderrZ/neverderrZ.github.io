@@ -3,9 +3,6 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
-TOKEN = "-"
-WEBAPP_URL = "https://neverderrZ.github.io"
-
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
