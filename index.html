@@ -47,7 +47,10 @@ h2 { margin: 0; color: #5f4b8b; }
   justify-content: center;
   align-items: center;
   cursor: pointer;
+  transition: transform .15s;
 }
+
+.cell:active { transform: scale(.9); }
 
 .overlay {
   position: absolute;
@@ -59,12 +62,23 @@ h2 { margin: 0; color: #5f4b8b; }
   align-items: center;
   border-radius: 24px;
   padding: 20px;
+  animation: fadeIn .35s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.overlay.win {
+  box-shadow: 0 0 0 9999px rgba(255,182,193,.35);
 }
 
 .overlay p {
   font-size: 18px;
   margin-bottom: 20px;
   color: #444;
+  text-align: center;
 }
 
 button {
@@ -77,6 +91,15 @@ button {
   font-size: 16px;
   cursor: pointer;
   margin-top: 10px;
+}
+
+button.glow {
+  animation: glow 1.5s infinite alternate;
+}
+
+@keyframes glow {
+  from { box-shadow: 0 0 10px #e5989b; }
+  to { box-shadow: 0 0 25px #ffb4c2; }
 }
 </style>
 </head>
@@ -101,6 +124,7 @@ tg.expand();
 const PLAYER = "❌";
 const BOT = "⭕";
 const EMPTY = "";
+const AI_MISTAKE_CHANCE = 0.3;
 
 let board = [];
 let gameOver = false;
@@ -117,6 +141,7 @@ function startGame() {
   gameOver = false;
   payload = "";
   overlay.style.display = "none";
+  overlay.className = "overlay";
   render();
 }
 
@@ -134,12 +159,23 @@ function render() {
 }
 
 function checkWin(sym) {
-  const wins = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-  return wins.some(line => line.every(i => board[i] === sym));
+  const w = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  return w.some(l => l.every(i => board[i] === sym));
+}
+
+function smartMove() {
+  const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for (let s of [BOT, PLAYER]) {
+    for (let l of lines) {
+      const v = l.map(i => board[i]);
+      if (v.filter(x => x === s).length === 2 && v.includes(EMPTY))
+        return l[v.indexOf(EMPTY)];
+    }
+  }
+  if (board[4] === EMPTY) return 4;
+  const corners = [0,2,6,8].filter(i => board[i] === EMPTY);
+  if (corners.length) return corners[Math.floor(Math.random()*corners.length)];
+  return board.findIndex(c => c === EMPTY);
 }
 
 function move(i) {
@@ -151,8 +187,11 @@ function move(i) {
   if (checkWin(PLAYER)) return endGame("win");
   if (!board.includes(EMPTY)) return endGame("draw");
 
-  const free = board.map((v,i)=>v===EMPTY?i:null).filter(i=>i!==null);
-  board[free[Math.floor(Math.random()*free.length)]] = BOT;
+  const ai = Math.random() < AI_MISTAKE_CHANCE
+    ? board.findIndex(c => c === EMPTY)
+    : smartMove();
+
+  board[ai] = BOT;
   render();
 
   if (checkWin(BOT)) return endGame("lose");
@@ -167,18 +206,12 @@ function endGame(result) {
     const promo = Math.floor(10000 + Math.random()*90000);
     resultText.innerHTML = `🎉 Победа!<br>Промокод выдан:<br><b>${promo}</b>`;
     payload = `win:${promo}`;
+    overlay.classList.add("win");
+    exitBtn.classList.add("glow");
     restartBtn.style.display = "none";
-  }
-
-  if (result === "lose") {
-    resultText.textContent = "😔 Проигрыш";
-    payload = "lose";
-    restartBtn.style.display = "block";
-  }
-
-  if (result === "draw") {
-    resultText.textContent = "🤍 Ничья";
-    payload = "draw";
+  } else {
+    resultText.textContent = result === "lose" ? "😔 Проигрыш" : "🤍 Ничья";
+    payload = result;
     restartBtn.style.display = "block";
   }
 }
