@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 <title>Крестики-нолики</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
   background: linear-gradient(135deg, #fde2e4, #e4c1f9);
-  color: #333;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -19,51 +22,70 @@ body {
 }
 
 .card {
-  background: #fff;
+  background: #ffffff;
   border-radius: 24px;
-  padding: 24px;
+  padding: 20px;
   width: 320px;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,.15);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+h2 {
+  margin: 0;
+  color: #5f4b8b;
+}
+
+#status {
+  margin-top: 10px;
+  min-height: 24px;
+  font-size: 14px;
+  color: #444;
 }
 
 .board {
+  margin: 20px 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  margin: 20px 0;
 }
 
 .cell {
   height: 80px;
-  font-size: 36px;
   border-radius: 16px;
   background: #f7f7f7;
+  font-size: 36px;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   cursor: pointer;
+  user-select: none;
+  transition: transform 0.1s ease;
+}
+
+.cell:active {
+  transform: scale(0.95);
 }
 
 button {
-  margin-top: 16px;
-  padding: 14px;
   width: 100%;
+  padding: 14px;
   border: none;
   border-radius: 16px;
-  font-size: 16px;
   background: #e5989b;
-  color: #fff;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  display: none;
 }
 </style>
 </head>
 
 <body>
 <div class="card">
-  <h3>🌸 Крестики-нолики</h3>
+  <h2>🌸 Крестики-нолики</h2>
   <div id="status">Ваш ход</div>
   <div class="board" id="board"></div>
-  <button id="restart" style="display:none;">🔁 Начать игру</button>
+  <button id="restart">🔁 Начать игру</button>
 </div>
 
 <script>
@@ -75,6 +97,8 @@ const PLAYER = "❌";
 const BOT = "⭕";
 
 let board = Array(9).fill(EMPTY);
+let gameOver = false;
+
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status");
 const restartBtn = document.getElementById("restart");
@@ -82,21 +106,21 @@ const restartBtn = document.getElementById("restart");
 function render() {
   boardEl.innerHTML = "";
   board.forEach((v, i) => {
-    const c = document.createElement("div");
-    c.className = "cell";
-    c.textContent = v;
-    c.onclick = () => move(i);
-    boardEl.appendChild(c);
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.textContent = v;
+    cell.onclick = () => move(i);
+    boardEl.appendChild(cell);
   });
 }
 
 function checkWin(sym) {
-  const w = [
+  const wins = [
     [0,1,2],[3,4,5],[6,7,8],
     [0,3,6],[1,4,7],[2,5,8],
     [0,4,8],[2,4,6]
   ];
-  return w.some(c => c.every(i => board[i] === sym));
+  return wins.some(line => line.every(i => board[i] === sym));
 }
 
 function aiMove() {
@@ -107,10 +131,10 @@ function aiMove() {
   ];
 
   for (let sym of [BOT, PLAYER]) {
-    for (let l of lines) {
-      const vals = l.map(i => board[i]);
+    for (let line of lines) {
+      const vals = line.map(i => board[i]);
       if (vals.filter(v => v === sym).length === 2 && vals.includes(EMPTY)) {
-        return l[vals.indexOf(EMPTY)];
+        return line[vals.indexOf(EMPTY)];
       }
     }
   }
@@ -118,29 +142,53 @@ function aiMove() {
   if (board[4] === EMPTY) return 4;
 
   const corners = [0,2,6,8].filter(i => board[i] === EMPTY);
-  if (corners.length) return corners[Math.floor(Math.random()*corners.length)];
+  if (corners.length) {
+    return corners[Math.floor(Math.random() * corners.length)];
+  }
 
   return board.findIndex(c => c === EMPTY);
 }
 
 function move(i) {
-  if (board[i] !== EMPTY) return;
+  if (board[i] !== EMPTY || gameOver) return;
+
   board[i] = PLAYER;
+  render();
 
-  if (checkWin(PLAYER)) return finish("win");
+  if (checkWin(PLAYER)) {
+    gameOver = true;
+    return finish("win");
+  }
 
-  if (!board.includes(EMPTY)) return finish("draw");
+  if (!board.includes(EMPTY)) {
+    gameOver = true;
+    return finish("draw");
+  }
 
-  const ai = aiMove();
-  if (ai !== -1) board[ai] = BOT;
-
-  if (checkWin(BOT)) return finish("lose");
-
-  if (!board.includes(EMPTY)) return finish("draw");
+  if (Math.random() < 0.15) {
+    const free = board
+      .map((v, i) => v === EMPTY ? i : null)
+      .filter(i => i !== null);
+    if (free.length) {
+      board[free[Math.floor(Math.random() * free.length)]] = BOT;
+    }
+  } else {
+    const ai = aiMove();
+    if (ai !== -1) board[ai] = BOT;
+  }
 
   render();
-}
 
+  if (checkWin(BOT)) {
+    gameOver = true;
+    return finish("lose");
+  }
+
+  if (!board.includes(EMPTY)) {
+    gameOver = true;
+    return finish("draw");
+  }
+}
 
 function finish(result) {
   let text = "";
@@ -163,15 +211,15 @@ function finish(result) {
   }
 
   statusEl.textContent = text;
-  tg.sendData(payload);
   restartBtn.style.display = "block";
-  render();
+  tg.sendData(payload);
 }
 
 restartBtn.onclick = () => {
   board = Array(9).fill(EMPTY);
-  restartBtn.style.display = "none";
+  gameOver = false;
   statusEl.textContent = "Ваш ход";
+  restartBtn.style.display = "none";
   render();
 };
 
