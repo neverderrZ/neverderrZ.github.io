@@ -11,8 +11,8 @@
 
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
-  background: linear-gradient(135deg,#fde2e4,#e4c1f9);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  background: linear-gradient(135deg, #fde2e4, #e4c1f9);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -22,17 +22,20 @@ body {
 .card {
   background: #fff;
   border-radius: 24px;
-  padding: 24px;
+  padding: 20px;
   width: 320px;
   text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,.15);
   position: relative;
 }
 
+h2 { margin: 0; color: #5f4b8b; }
+
 .board {
-  display: grid;
-  grid-template-columns: repeat(3,1fr);
-  gap: 12px;
   margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
 .cell {
@@ -50,27 +53,30 @@ body {
   position: absolute;
   inset: 0;
   background: rgba(255,255,255,.95);
-  border-radius: 24px;
   display: none;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  border-radius: 24px;
   padding: 20px;
 }
 
-.overlay h3 {
+.overlay p {
+  font-size: 18px;
   margin-bottom: 20px;
+  color: #444;
 }
 
 button {
   width: 100%;
-  padding: 12px;
-  border-radius: 14px;
+  padding: 14px;
   border: none;
-  margin-top: 10px;
+  border-radius: 16px;
   background: #e5989b;
-  color: white;
-  font-size: 15px;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  margin-top: 10px;
 }
 </style>
 </head>
@@ -82,9 +88,9 @@ button {
   <div class="board" id="board"></div>
 
   <div class="overlay" id="overlay">
-    <h3 id="resultText"></h3>
+    <p id="resultText"></p>
     <button id="restartBtn">🔁 Начать заново</button>
-    <button id="exitBtn">❌ Выйти</button>
+    <button id="exitBtn">🚪 Выйти</button>
   </div>
 </div>
 
@@ -96,7 +102,7 @@ const PLAYER = "❌";
 const BOT = "⭕";
 const EMPTY = "";
 
-let board = Array(9).fill(EMPTY);
+let board = [];
 let gameOver = false;
 let payload = "";
 
@@ -106,68 +112,84 @@ const resultText = document.getElementById("resultText");
 const restartBtn = document.getElementById("restartBtn");
 const exitBtn = document.getElementById("exitBtn");
 
+function startGame() {
+  board = Array(9).fill(EMPTY);
+  gameOver = false;
+  payload = "";
+  overlay.style.display = "none";
+  render();
+}
+
 function render() {
   boardEl.innerHTML = "";
-  board.forEach((v,i)=>{
+  board.forEach((v, i) => {
     const cell = document.createElement("div");
-    cell.className="cell";
-    cell.textContent=v;
-    if(!gameOver && v===EMPTY) cell.onclick=()=>move(i);
+    cell.className = "cell";
+    cell.textContent = v;
+    if (!gameOver && v === EMPTY) {
+      cell.onclick = () => move(i);
+    }
     boardEl.appendChild(cell);
   });
 }
 
-function checkWin(s) {
-  const w=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  return w.some(l=>l.every(i=>board[i]===s));
+function checkWin(sym) {
+  const wins = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  return wins.some(line => line.every(i => board[i] === sym));
 }
 
-function move(i){
-  if(gameOver||board[i]!==EMPTY) return;
-  board[i]=PLAYER;
+function move(i) {
+  if (gameOver || board[i] !== EMPTY) return;
+
+  board[i] = PLAYER;
   render();
 
-  if(checkWin(PLAYER)) return end("win");
-  if(!board.includes(EMPTY)) return end("draw");
+  if (checkWin(PLAYER)) return endGame("win");
+  if (!board.includes(EMPTY)) return endGame("draw");
 
-  const free=board.map((v,i)=>v===EMPTY?i:null).filter(i=>i!==null);
-  board[free[Math.floor(Math.random()*free.length)]]=BOT;
+  const free = board.map((v,i)=>v===EMPTY?i:null).filter(i=>i!==null);
+  board[free[Math.floor(Math.random()*free.length)]] = BOT;
   render();
 
-  if(checkWin(BOT)) return end("lose");
-  if(!board.includes(EMPTY)) return end("draw");
+  if (checkWin(BOT)) return endGame("lose");
+  if (!board.includes(EMPTY)) return endGame("draw");
 }
 
-function end(result){
-  gameOver=true;
-  overlay.style.display="flex";
+function endGame(result) {
+  gameOver = true;
+  overlay.style.display = "flex";
 
-  restartBtn.style.display = result==="win" ? "none" : "block";
-
-  if(result==="win"){
-    const promo=Math.floor(10000+Math.random()*90000);
-    resultText.innerHTML=`🎉 Победа!<br>Промокод выдан:<br><b>${promo}</b>`;
-    payload=`win:${promo}`;
+  if (result === "win") {
+    const promo = Math.floor(10000 + Math.random()*90000);
+    resultText.innerHTML = `🎉 Победа!<br>Промокод выдан:<br><b>${promo}</b>`;
+    payload = `win:${promo}`;
+    restartBtn.style.display = "none";
   }
 
-  if(result==="lose"){
-    resultText.textContent="😔 Проигрыш";
-    payload="lose";
+  if (result === "lose") {
+    resultText.textContent = "😔 Проигрыш";
+    payload = "lose";
+    restartBtn.style.display = "block";
   }
 
-  if(result==="draw"){
-    resultText.textContent="🤍 Ничья";
-    payload="draw";
+  if (result === "draw") {
+    resultText.textContent = "🤍 Ничья";
+    payload = "draw";
+    restartBtn.style.display = "block";
   }
 }
 
-restartBtn.onclick=()=>{
-  board=Array(9).fill(EMPTY);
-  gameOver=false;
-  overlay.style.display="none";
-  render();
+restartBtn.onclick = startGame;
+exitBtn.onclick = () => {
+  tg.sendData(payload);
+  setTimeout(() => tg.close(), 100);
 };
 
-exitBtn.onclick=()=>{
-  tg.sendData(payload);
-  setTimeout(()=>tg.close(),100)
+startGame();
+</script>
+</body>
+</html>
