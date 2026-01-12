@@ -7,9 +7,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
@@ -22,12 +20,12 @@ body {
 }
 
 .card {
-  background: #ffffff;
+  background: #fff;
   border-radius: 24px;
   padding: 20px;
   width: 320px;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  box-shadow: 0 10px 30px rgba(0,0,0,.15);
 }
 
 h2 {
@@ -59,11 +57,6 @@ h2 {
   align-items: center;
   cursor: pointer;
   user-select: none;
-  transition: transform 0.1s ease;
-}
-
-.cell:active {
-  transform: scale(0.95);
 }
 
 button {
@@ -72,7 +65,7 @@ button {
   border: none;
   border-radius: 16px;
   background: #e5989b;
-  color: white;
+  color: #fff;
   font-size: 16px;
   cursor: pointer;
   display: none;
@@ -103,6 +96,9 @@ const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status");
 const restartBtn = document.getElementById("restart");
 
+// шанс ОШИБКИ AI → 35% побед игрока
+const AI_MISTAKE_CHANCE = 0.35;
+
 function render() {
   boardEl.innerHTML = "";
   board.forEach((v, i) => {
@@ -123,7 +119,7 @@ function checkWin(sym) {
   return wins.some(line => line.every(i => board[i] === sym));
 }
 
-function aiMove() {
+function smartMove() {
   const lines = [
     [0,1,2],[3,4,5],[6,7,8],
     [0,3,6],[1,4,7],[2,5,8],
@@ -149,8 +145,17 @@ function aiMove() {
   return board.findIndex(c => c === EMPTY);
 }
 
+function dumbMove() {
+  const free = board
+    .map((v, i) => v === EMPTY ? i : null)
+    .filter(i => i !== null);
+  return free.length
+    ? free[Math.floor(Math.random() * free.length)]
+    : -1;
+}
+
 function move(i) {
-  if (board[i] !== EMPTY || gameOver) return;
+  if (gameOver || board[i] !== EMPTY) return;
 
   board[i] = PLAYER;
   render();
@@ -165,18 +170,13 @@ function move(i) {
     return finish("draw");
   }
 
-  if (Math.random() < 0.15) {
-    const free = board
-      .map((v, i) => v === EMPTY ? i : null)
-      .filter(i => i !== null);
-    if (free.length) {
-      board[free[Math.floor(Math.random() * free.length)]] = BOT;
-    }
-  } else {
-    const ai = aiMove();
-    if (ai !== -1) board[ai] = BOT;
-  }
+  if (gameOver) return;
 
+  const aiIndex = Math.random() < AI_MISTAKE_CHANCE
+    ? dumbMove()
+    : smartMove();
+
+  if (aiIndex !== -1) board[aiIndex] = BOT;
   render();
 
   if (checkWin(BOT)) {
@@ -191,6 +191,8 @@ function move(i) {
 }
 
 function finish(result) {
+  if (gameOver && restartBtn.style.display === "block") return;
+
   let text = "";
   let payload = "";
 
@@ -218,8 +220,8 @@ function finish(result) {
 restartBtn.onclick = () => {
   board = Array(9).fill(EMPTY);
   gameOver = false;
-  statusEl.textContent = "Ваш ход";
   restartBtn.style.display = "none";
+  statusEl.textContent = "Ваш ход";
   render();
 };
 
