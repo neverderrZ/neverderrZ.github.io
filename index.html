@@ -7,7 +7,9 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
@@ -20,12 +22,12 @@ body {
 }
 
 .card {
-  background: #fff;
+  background: #ffffff;
   border-radius: 24px;
   padding: 20px;
   width: 320px;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,.15);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
 }
 
 h2 {
@@ -47,10 +49,6 @@ h2 {
   gap: 12px;
 }
 
-.board.locked {
-  pointer-events: none;
-}
-
 .cell {
   height: 80px;
   border-radius: 16px;
@@ -61,6 +59,11 @@ h2 {
   align-items: center;
   cursor: pointer;
   user-select: none;
+  transition: transform 0.1s ease;
+}
+
+.cell:active {
+  transform: scale(0.95);
 }
 
 button {
@@ -69,7 +72,7 @@ button {
   border: none;
   border-radius: 16px;
   background: #e5989b;
-  color: #fff;
+  color: white;
   font-size: 16px;
   cursor: pointer;
   display: none;
@@ -96,26 +99,17 @@ const BOT = "⭕";
 let board = Array(9).fill(EMPTY);
 let gameOver = false;
 
-const AI_MISTAKE_CHANCE = 0.35;
-
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status");
 const restartBtn = document.getElementById("restart");
 
 function render() {
   boardEl.innerHTML = "";
-
-  boardEl.classList.toggle("locked", gameOver);
-
   board.forEach((v, i) => {
     const cell = document.createElement("div");
     cell.className = "cell";
     cell.textContent = v;
-
-    if (!gameOver && v === EMPTY) {
-      cell.onclick = () => move(i);
-    }
-
+    cell.onclick = () => move(i);
     boardEl.appendChild(cell);
   });
 }
@@ -129,7 +123,7 @@ function checkWin(sym) {
   return wins.some(line => line.every(i => board[i] === sym));
 }
 
-function smartMove() {
+function aiMove() {
   const lines = [
     [0,1,2],[3,4,5],[6,7,8],
     [0,3,6],[1,4,7],[2,5,8],
@@ -155,81 +149,77 @@ function smartMove() {
   return board.findIndex(c => c === EMPTY);
 }
 
-function dumbMove() {
-  const free = board
-    .map((v, i) => v === EMPTY ? i : null)
-    .filter(i => i !== null);
-
-  return free.length
-    ? free[Math.floor(Math.random() * free.length)]
-    : -1;
-}
-
 function move(i) {
-  if (gameOver || board[i] !== EMPTY) return;
+  if (board[i] !== EMPTY || gameOver) return;
 
   board[i] = PLAYER;
   render();
 
   if (checkWin(PLAYER)) {
-    return endGame("win");
+    gameOver = true;
+    return finish("win");
   }
 
   if (!board.includes(EMPTY)) {
-    return endGame("draw");
+    gameOver = true;
+    return finish("draw");
   }
 
-  const aiIndex = Math.random() < AI_MISTAKE_CHANCE
-    ? dumbMove()
-    : smartMove();
-
-  if (aiIndex !== -1) {
-    board[aiIndex] = BOT;
-    render();
+  if (Math.random() < 0.15) {
+    const free = board
+      .map((v, i) => v === EMPTY ? i : null)
+      .filter(i => i !== null);
+    if (free.length) {
+      board[free[Math.floor(Math.random() * free.length)]] = BOT;
+    }
+  } else {
+    const ai = aiMove();
+    if (ai !== -1) board[ai] = BOT;
   }
+
+  render();
 
   if (checkWin(BOT)) {
-    return endGame("lose");
+    gameOver = true;
+    return finish("lose");
   }
 
   if (!board.includes(EMPTY)) {
-    return endGame("draw");
+    gameOver = true;
+    return finish("draw");
   }
 }
 
-function endGame(result) {
-  if (gameOver) return;
-  gameOver = true;
-
+function finish(result) {
+  let text = "";
   let payload = "";
 
   if (result === "win") {
     const promo = Math.floor(10000 + Math.random() * 90000);
+    text = `🎉 Победа! Промокод: ${promo}`;
     payload = `win:${promo}`;
-    statusEl.textContent = `🎉 Победа! Промокод: ${promo}`;
   }
 
   if (result === "lose") {
+    text = "😔 Проигрыш";
     payload = "lose";
-    statusEl.textContent = "😔 Проигрыш";
   }
 
   if (result === "draw") {
+    text = "🤍 Ничья";
     payload = "draw";
-    statusEl.textContent = "🤍 Ничья";
   }
 
+  statusEl.textContent = text;
+  restartBtn.style.display = "block";
   tg.sendData(payload);
-
-  setTimeout(() => tg.close(), 100);
 }
-
 
 restartBtn.onclick = () => {
   board = Array(9).fill(EMPTY);
   gameOver = false;
-  restartBtn.style.display = "none";
   statusEl.textContent = "Ваш ход";
+  restartBtn.style.display = "none";
   render();
 };
 
