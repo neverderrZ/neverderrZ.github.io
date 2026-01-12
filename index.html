@@ -7,12 +7,10 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
-* { box-sizing: border-box; }
-
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  background: linear-gradient(135deg, #fde2e4, #e4c1f9);
+  font-family: system-ui;
+  background: linear-gradient(135deg,#fde2e4,#e4c1f9);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -20,86 +18,52 @@ body {
 }
 
 .card {
+  width: 320px;
   background: #fff;
   border-radius: 24px;
   padding: 20px;
-  width: 320px;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,.15);
   position: relative;
 }
 
-h2 { margin: 0; color: #5f4b8b; }
-
 .board {
-  margin-top: 20px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(3,1fr);
+  gap: 10px;
+  margin-top: 20px;
 }
 
 .cell {
   height: 80px;
-  border-radius: 16px;
   background: #f7f7f7;
+  border-radius: 16px;
   font-size: 36px;
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  transition: transform .15s;
 }
-
-.cell:active { transform: scale(.9); }
 
 .overlay {
   position: absolute;
   inset: 0;
   background: rgba(255,255,255,.95);
-  display: none;
+  display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   border-radius: 24px;
-  padding: 20px;
-  animation: fadeIn .35s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.overlay.win {
-  box-shadow: 0 0 0 9999px rgba(255,182,193,.35);
-}
-
-.overlay p {
-  font-size: 18px;
-  margin-bottom: 20px;
-  color: #444;
-  text-align: center;
 }
 
 button {
-  width: 100%;
-  padding: 14px;
-  border: none;
+  margin-top: 12px;
+  padding: 12px;
+  width: 80%;
   border-radius: 16px;
+  border: none;
   background: #e5989b;
   color: #fff;
   font-size: 16px;
-  cursor: pointer;
-  margin-top: 10px;
-}
-
-button.glow {
-  animation: glow 1.5s infinite alternate;
-}
-
-@keyframes glow {
-  from { box-shadow: 0 0 10px #e5989b; }
-  to { box-shadow: 0 0 25px #ffb4c2; }
 }
 </style>
 </head>
@@ -107,14 +71,7 @@ button.glow {
 <body>
 <div class="card">
   <h2>🌸 Крестики-нолики</h2>
-
-  <div class="board" id="board"></div>
-
-  <div class="overlay" id="overlay">
-    <p id="resultText"></p>
-    <button id="restartBtn">🔁 Начать заново</button>
-    <button id="exitBtn">🚪 Выйти</button>
-  </div>
+  <div id="board" class="board"></div>
 </div>
 
 <script>
@@ -124,105 +81,88 @@ tg.expand();
 const PLAYER = "❌";
 const BOT = "⭕";
 const EMPTY = "";
-const AI_MISTAKE_CHANCE = 0.1;
 
-let board = [];
+let board = Array(9).fill(EMPTY);
 let gameOver = false;
 let payload = "";
 
 const boardEl = document.getElementById("board");
-const overlay = document.getElementById("overlay");
-const resultText = document.getElementById("resultText");
-const restartBtn = document.getElementById("restartBtn");
-const exitBtn = document.getElementById("exitBtn");
-
-function startGame() {
-  board = Array(9).fill(EMPTY);
-  gameOver = false;
-  payload = "";
-  overlay.style.display = "none";
-  overlay.className = "overlay";
-  render();
-}
 
 function render() {
   boardEl.innerHTML = "";
-  board.forEach((v, i) => {
-    const cell = document.createElement("div");
-    cell.className = "cell";
-    cell.textContent = v;
-    if (!gameOver && v === EMPTY) {
-      cell.onclick = () => move(i);
-    }
-    boardEl.appendChild(cell);
+  board.forEach((v,i)=>{
+    const c = document.createElement("div");
+    c.className = "cell";
+    c.textContent = v;
+    if(!gameOver && v===EMPTY) c.onclick = ()=>move(i);
+    boardEl.appendChild(c);
   });
 }
 
-function checkWin(sym) {
-  const w = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  return w.some(l => l.every(i => board[i] === sym));
+function win(sym){
+  const w=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  return w.some(l=>l.every(i=>board[i]===sym));
 }
 
-function smartMove() {
-  const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  for (let s of [BOT, PLAYER]) {
-    for (let l of lines) {
-      const v = l.map(i => board[i]);
-      if (v.filter(x => x === s).length === 2 && v.includes(EMPTY))
+function aiMove(){
+  if(Math.random()<0.35){
+    const f=board.map((v,i)=>v===EMPTY?i:null).filter(i=>i!==null);
+    return f[Math.floor(Math.random()*f.length)];
+  }
+  const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for(const s of [BOT,PLAYER]){
+    for(const l of lines){
+      const v=l.map(i=>board[i]);
+      if(v.filter(x=>x===s).length===2 && v.includes(EMPTY))
         return l[v.indexOf(EMPTY)];
     }
   }
-  if (board[4] === EMPTY) return 4;
-  const corners = [0,2,6,8].filter(i => board[i] === EMPTY);
-  if (corners.length) return corners[Math.floor(Math.random()*corners.length)];
-  return board.findIndex(c => c === EMPTY);
+  return board.findIndex(v=>v===EMPTY);
 }
 
-function move(i) {
-  if (gameOver || board[i] !== EMPTY) return;
-
-  board[i] = PLAYER;
-  render();
-
-  if (checkWin(PLAYER)) return endGame("win");
-  if (!board.includes(EMPTY)) return endGame("draw");
-
-  const ai = Math.random() < AI_MISTAKE_CHANCE
-    ? board.findIndex(c => c === EMPTY)
-    : smartMove();
-
-  board[ai] = BOT;
-  render();
-
-  if (checkWin(BOT)) return endGame("lose");
-  if (!board.includes(EMPTY)) return endGame("draw");
+function end(text, data){
+  gameOver=true;
+  payload=data;
+  const o=document.createElement("div");
+  o.className="overlay";
+  o.innerHTML=`
+    <h3>${text}</h3>
+    ${data.startsWith("win")?"":"<button onclick='restart()'>🔁 Заново</button>"}
+    <button onclick='exitGame()'>🚪 Выйти</button>
+  `;
+  document.querySelector(".card").appendChild(o);
 }
 
-function endGame(result) {
-  gameOver = true;
-  overlay.style.display = "flex";
-
-  if (result === "win") {
-    const promo = Math.floor(10000 + Math.random()*90000);
-    resultText.innerHTML = `🎉 Победа!<br>Промокод выдан:<br><b>${promo}</b>`;
-    payload = `win:${promo}`;
-    overlay.classList.add("win");
-    exitBtn.classList.add("glow");
-    restartBtn.style.display = "none";
-  } else {
-    resultText.textContent = result === "lose" ? "😔 Проигрыш" : "🤍 Ничья";
-    payload = result;
-    restartBtn.style.display = "block";
+function move(i){
+  if(gameOver||board[i]!==EMPTY)return;
+  board[i]=PLAYER;
+  render();
+  if(win(PLAYER)){
+    const promo=Math.floor(10000+Math.random()*90000);
+    return end(`🎉 Победа!<br>Промокод: <b>${promo}</b>`,`win:${promo}`);
   }
+  if(!board.includes(EMPTY)) return end("🤍 Ничья","draw");
+
+  const ai=aiMove();
+  if(ai!==-1) board[ai]=BOT;
+  render();
+  if(win(BOT)) return end("😔 Проигрыш","lose");
+  if(!board.includes(EMPTY)) end("🤍 Ничья","draw");
 }
 
-restartBtn.onclick = startGame;
-exitBtn.onclick = () => {
-  tg.sendData(payload);
-  setTimeout(() => tg.close(), 100);
-};
+function restart(){
+  board=Array(9).fill(EMPTY);
+  gameOver=false;
+  document.querySelector(".overlay").remove();
+  render();
+}
 
-startGame();
+function exitGame(){
+  tg.sendData(payload);
+  setTimeout(()=>tg.close(),100);
+}
+
+render();
 </script>
 </body>
 </html>
