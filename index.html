@@ -47,6 +47,11 @@ h2 {
   gap: 12px;
 }
 
+/* 🔒 КЛЮЧ: блокируем клики полностью */
+.board.locked {
+  pointer-events: none;
+}
+
 .cell {
   height: 80px;
   border-radius: 16px;
@@ -92,20 +97,27 @@ const BOT = "⭕";
 let board = Array(9).fill(EMPTY);
 let gameOver = false;
 
+const AI_MISTAKE_CHANCE = 0.35;
+
 const boardEl = document.getElementById("board");
 const statusEl = document.getElementById("status");
 const restartBtn = document.getElementById("restart");
 
-// шанс ОШИБКИ AI → 35% побед игрока
-const AI_MISTAKE_CHANCE = 0.35;
-
 function render() {
   boardEl.innerHTML = "";
+
+  // 🔒 физически блокируем поле
+  boardEl.classList.toggle("locked", gameOver);
+
   board.forEach((v, i) => {
     const cell = document.createElement("div");
     cell.className = "cell";
     cell.textContent = v;
-    cell.onclick = () => move(i);
+
+    if (!gameOver && v === EMPTY) {
+      cell.onclick = () => move(i);
+    }
+
     boardEl.appendChild(cell);
   });
 }
@@ -149,6 +161,7 @@ function dumbMove() {
   const free = board
     .map((v, i) => v === EMPTY ? i : null)
     .filter(i => i !== null);
+
   return free.length
     ? free[Math.floor(Math.random() * free.length)]
     : -1;
@@ -161,37 +174,34 @@ function move(i) {
   render();
 
   if (checkWin(PLAYER)) {
-    gameOver = true;
-    return finish("win");
+    return endGame("win");
   }
 
   if (!board.includes(EMPTY)) {
-    gameOver = true;
-    return finish("draw");
+    return endGame("draw");
   }
-
-  if (gameOver) return;
 
   const aiIndex = Math.random() < AI_MISTAKE_CHANCE
     ? dumbMove()
     : smartMove();
 
-  if (aiIndex !== -1) board[aiIndex] = BOT;
-  render();
+  if (aiIndex !== -1) {
+    board[aiIndex] = BOT;
+    render();
+  }
 
   if (checkWin(BOT)) {
-    gameOver = true;
-    return finish("lose");
+    return endGame("lose");
   }
 
   if (!board.includes(EMPTY)) {
-    gameOver = true;
-    return finish("draw");
+    return endGame("draw");
   }
 }
 
-function finish(result) {
-  if (gameOver && restartBtn.style.display === "block") return;
+function endGame(result) {
+  if (gameOver) return; // 🔒 финальный предохранитель
+  gameOver = true;
 
   let text = "";
   let payload = "";
@@ -214,6 +224,8 @@ function finish(result) {
 
   statusEl.textContent = text;
   restartBtn.style.display = "block";
+  render();
+
   tg.sendData(payload);
 }
 
