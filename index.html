@@ -8,7 +8,6 @@
 
 <style>
 * { box-sizing: border-box; }
-
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
@@ -18,7 +17,6 @@ body {
   align-items: center;
   height: 100vh;
 }
-
 .card {
   background: #fff;
   border-radius: 24px;
@@ -27,22 +25,13 @@ body {
   text-align: center;
   box-shadow: 0 10px 30px rgba(0,0,0,.15);
 }
-
-h2 {
-  margin: 0;
-  color: #5f4b8b;
-}
-
-#content {
-  margin-top: 20px;
-}
-
+h2 { margin: 0; color: #5f4b8b; }
+#content { margin-top: 20px; }
 .board {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
-
 .cell {
   height: 80px;
   border-radius: 16px;
@@ -54,14 +43,12 @@ h2 {
   cursor: pointer;
   user-select: none;
 }
-
 .result {
   font-size: 18px;
   font-weight: 500;
   color: #444;
   margin: 40px 0;
 }
-
 button {
   width: 100%;
   padding: 14px;
@@ -103,17 +90,13 @@ function startGame() {
 }
 
 function renderBoard() {
-  contentEl.innerHTML = `
-    <div class="board" id="board"></div>
-  `;
-
+  contentEl.innerHTML = `<div class="board" id="board"></div>`;
   const boardEl = document.getElementById("board");
-
   board.forEach((v, i) => {
     const cell = document.createElement("div");
     cell.className = "cell";
     cell.textContent = v;
-    cell.onclick = () => move(i);
+    if (!gameOver && v === EMPTY) cell.onclick = () => move(i);
     boardEl.appendChild(cell);
   });
 }
@@ -141,7 +124,6 @@ function smartMove() {
     [0,3,6],[1,4,7],[2,5,8],
     [0,4,8],[2,4,6]
   ];
-
   for (let sym of [BOT, PLAYER]) {
     for (let line of lines) {
       const vals = line.map(i => board[i]);
@@ -150,56 +132,37 @@ function smartMove() {
       }
     }
   }
-
   if (board[4] === EMPTY) return 4;
-
   const corners = [0,2,6,8].filter(i => board[i] === EMPTY);
-  if (corners.length) {
-    return corners[Math.floor(Math.random() * corners.length)];
-  }
-
+  if (corners.length) return corners[Math.floor(Math.random() * corners.length)];
   return board.findIndex(c => c === EMPTY);
 }
 
 function dumbMove() {
-  const free = board
-    .map((v, i) => v === EMPTY ? i : null)
-    .filter(i => i !== null);
-
-  return free.length
-    ? free[Math.floor(Math.random() * free.length)]
-    : -1;
+  const free = board.map((v,i)=>v===EMPTY?i:null).filter(i=>i!==null);
+  return free.length ? free[Math.floor(Math.random()*free.length)] : -1;
 }
 
 function move(i) {
   if (gameOver || board[i] !== EMPTY) return;
-
   board[i] = PLAYER;
   renderBoard();
-
   if (checkWin(PLAYER)) {
     gameOver = true;
-    const promo = Math.floor(10000 + Math.random() * 90000);
+    const promo = Math.floor(10000 + Math.random()*90000);
     return renderResult(`🎉 Победа!<br>Промокод: <b>${promo}</b>`, `win:${promo}`);
   }
-
   if (!board.includes(EMPTY)) {
     gameOver = true;
     return renderResult("🤍 Ничья", "draw");
   }
-
-  const aiIndex = Math.random() < AI_MISTAKE_CHANCE
-    ? dumbMove()
-    : smartMove();
-
+  const aiIndex = Math.random() < AI_MISTAKE_CHANCE ? dumbMove() : smartMove();
   if (aiIndex !== -1) board[aiIndex] = BOT;
   renderBoard();
-
   if (checkWin(BOT)) {
     gameOver = true;
     return renderResult("😔 Проигрыш", "lose");
   }
-
   if (!board.includes(EMPTY)) {
     gameOver = true;
     return renderResult("🤍 Ничья", "draw");
