@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>Крестики-нолики</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
@@ -11,8 +11,8 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
-  background: linear-gradient(135deg, #fde2e4, #e4c1f9);
+  font-family: system-ui, sans-serif;
+  background: linear-gradient(135deg,#fde2e4,#e4c1f9);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -25,22 +25,14 @@ body {
   padding: 24px;
   width: 320px;
   text-align: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,.15);
-}
-
-h2 {
-  margin: 0;
-  color: #5f4b8b;
-}
-
-#content {
-  margin-top: 20px;
+  position: relative;
 }
 
 .board {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3,1fr);
   gap: 12px;
+  margin-top: 20px;
 }
 
 .cell {
@@ -52,26 +44,33 @@ h2 {
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  user-select: none;
 }
 
-.result {
-  font-size: 18px;
-  font-weight: 500;
-  color: #444;
-  margin: 40px 0;
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,.95);
+  border-radius: 24px;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.overlay h3 {
+  margin-bottom: 20px;
 }
 
 button {
   width: 100%;
-  padding: 14px;
+  padding: 12px;
+  border-radius: 14px;
   border: none;
-  border-radius: 16px;
+  margin-top: 10px;
   background: #e5989b;
-  color: #fff;
-  font-size: 16px;
-  cursor: pointer;
-  margin-top: 16px;
+  color: white;
+  font-size: 15px;
 }
 </style>
 </head>
@@ -79,135 +78,96 @@ button {
 <body>
 <div class="card">
   <h2>🌸 Крестики-нолики</h2>
-  <div id="content"></div>
+
+  <div class="board" id="board"></div>
+
+  <div class="overlay" id="overlay">
+    <h3 id="resultText"></h3>
+    <button id="restartBtn">🔁 Начать заново</button>
+    <button id="exitBtn">❌ Выйти</button>
+  </div>
 </div>
 
 <script>
-const tg = window.Telegram.WebApp;
+const tg = Telegram.WebApp;
 tg.expand();
 
-const EMPTY = "";
 const PLAYER = "❌";
 const BOT = "⭕";
-const AI_MISTAKE_CHANCE = 0.35;
+const EMPTY = "";
 
-let board;
+let board = Array(9).fill(EMPTY);
 let gameOver = false;
+let payload = "";
 
-const contentEl = document.getElementById("content");
+const boardEl = document.getElementById("board");
+const overlay = document.getElementById("overlay");
+const resultText = document.getElementById("resultText");
+const restartBtn = document.getElementById("restartBtn");
+const exitBtn = document.getElementById("exitBtn");
 
-function startGame() {
-  board = Array(9).fill(EMPTY);
-  gameOver = false;
-  renderBoard();
-}
-
-function renderBoard() {
-  contentEl.innerHTML = `
-    <div class="board" id="board"></div>
-  `;
-
-  const boardEl = document.getElementById("board");
-
-  board.forEach((v, i) => {
+function render() {
+  boardEl.innerHTML = "";
+  board.forEach((v,i)=>{
     const cell = document.createElement("div");
-    cell.className = "cell";
-    cell.textContent = v;
-    cell.onclick = () => move(i);
+    cell.className="cell";
+    cell.textContent=v;
+    if(!gameOver && v===EMPTY) cell.onclick=()=>move(i);
     boardEl.appendChild(cell);
   });
 }
 
-function renderResult(text, payload) {
-  contentEl.innerHTML = `
-    <div class="result">${text}</div>
-    <button onclick="startGame()">🔁 Начать игру</button>
-  `;
+function checkWin(s) {
+  const w=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  return w.some(l=>l.every(i=>board[i]===s));
+}
+
+function move(i){
+  if(gameOver||board[i]!==EMPTY) return;
+  board[i]=PLAYER;
+  render();
+
+  if(checkWin(PLAYER)) return end("win");
+  if(!board.includes(EMPTY)) return end("draw");
+
+  const free=board.map((v,i)=>v===EMPTY?i:null).filter(i=>i!==null);
+  board[free[Math.floor(Math.random()*free.length)]]=BOT;
+  render();
+
+  if(checkWin(BOT)) return end("lose");
+  if(!board.includes(EMPTY)) return end("draw");
+}
+
+function end(result){
+  gameOver=true;
+  overlay.style.display="flex";
+
+  restartBtn.style.display = result==="win" ? "none" : "block";
+
+  if(result==="win"){
+    const promo=Math.floor(10000+Math.random()*90000);
+    resultText.innerHTML=`🎉 Победа!<br>Промокод выдан:<br><b>${promo}</b>`;
+    payload=`win:${promo}`;
+  }
+
+  if(result==="lose"){
+    resultText.textContent="😔 Проигрыш";
+    payload="lose";
+  }
+
+  if(result==="draw"){
+    resultText.textContent="🤍 Ничья";
+    payload="draw";
+  }
+}
+
+restartBtn.onclick=()=>{
+  board=Array(9).fill(EMPTY);
+  gameOver=false;
+  overlay.style.display="none";
+  render();
+};
+
+exitBtn.onclick=()=>{
   tg.sendData(payload);
-}
-
-function checkWin(sym) {
-  const wins = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-  return wins.some(line => line.every(i => board[i] === sym));
-}
-
-function smartMove() {
-  const lines = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-
-  for (let sym of [BOT, PLAYER]) {
-    for (let line of lines) {
-      const vals = line.map(i => board[i]);
-      if (vals.filter(v => v === sym).length === 2 && vals.includes(EMPTY)) {
-        return line[vals.indexOf(EMPTY)];
-      }
-    }
-  }
-
-  if (board[4] === EMPTY) return 4;
-
-  const corners = [0,2,6,8].filter(i => board[i] === EMPTY);
-  if (corners.length) {
-    return corners[Math.floor(Math.random() * corners.length)];
-  }
-
-  return board.findIndex(c => c === EMPTY);
-}
-
-function dumbMove() {
-  const free = board
-    .map((v, i) => v === EMPTY ? i : null)
-    .filter(i => i !== null);
-
-  return free.length
-    ? free[Math.floor(Math.random() * free.length)]
-    : -1;
-}
-
-function move(i) {
-  if (gameOver || board[i] !== EMPTY) return;
-
-  board[i] = PLAYER;
-  renderBoard();
-
-  if (checkWin(PLAYER)) {
-    gameOver = true;
-    const promo = Math.floor(10000 + Math.random() * 90000);
-    return renderResult(`🎉 Победа!<br>Промокод: <b>${promo}</b>`, `win:${promo}`);
-  }
-
-  if (!board.includes(EMPTY)) {
-    gameOver = true;
-    return renderResult("🤍 Ничья", "draw");
-  }
-
-  const aiIndex = Math.random() < AI_MISTAKE_CHANCE
-    ? dumbMove()
-    : smartMove();
-
-  if (aiIndex !== -1) board[aiIndex] = BOT;
-  renderBoard();
-
-  if (checkWin(BOT)) {
-    gameOver = true;
-    return renderResult("😔 Проигрыш", "lose");
-  }
-
-  if (!board.includes(EMPTY)) {
-    gameOver = true;
-    return renderResult("🤍 Ничья", "draw");
-  }
-}
-
-// старт
-startGame();
-</script>
-</body>
-</html>
+  setTimeout(()=>tg.close(),100)
