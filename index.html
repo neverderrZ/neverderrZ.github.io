@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Крестики-нолики</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<style>
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, #fde2e4, #e4c1f9);
+  color: #333;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.card {
+  background: #fff;
+  border-radius: 24px;
+  padding: 24px;
+  width: 320px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,.15);
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.cell {
+  height: 80px;
+  font-size: 36px;
+  border-radius: 16px;
+  background: #f7f7f7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+button {
+  margin-top: 16px;
+  padding: 14px;
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  background: #e5989b;
+  color: #fff;
+}
+</style>
+</head>
+
+<body>
+<div class="card">
+  <h3>🌸 Крестики-нолики</h3>
+  <div id="status">Ваш ход</div>
+  <div class="board" id="board"></div>
+  <button id="restart" style="display:none;">🔁 Начать игру</button>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.expand();
+
+const EMPTY = "";
+const PLAYER = "❌";
+const BOT = "⭕";
+
+let board = Array(9).fill(EMPTY);
+const boardEl = document.getElementById("board");
+const statusEl = document.getElementById("status");
+const restartBtn = document.getElementById("restart");
+
+function render() {
+  boardEl.innerHTML = "";
+  board.forEach((v, i) => {
+    const c = document.createElement("div");
+    c.className = "cell";
+    c.textContent = v;
+    c.onclick = () => move(i);
+    boardEl.appendChild(c);
+  });
+}
+
+function checkWin(sym) {
+  const w = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  return w.some(c => c.every(i => board[i] === sym));
+}
+
+function aiMove() {
+  const lines = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  for (let sym of [BOT, PLAYER]) {
+    for (let l of lines) {
+      const vals = l.map(i => board[i]);
+      if (vals.filter(v => v === sym).length === 2 && vals.includes(EMPTY)) {
+        return l[vals.indexOf(EMPTY)];
+      }
+    }
+  }
+
+  if (board[4] === EMPTY) return 4;
+
+  const corners = [0,2,6,8].filter(i => board[i] === EMPTY);
+  if (corners.length) return corners[Math.floor(Math.random()*corners.length)];
+
+  return board.findIndex(c => c === EMPTY);
+}
+
+function move(i) {
+  if (board[i] !== EMPTY) return;
+  board[i] = PLAYER;
+
+  if (checkWin(PLAYER)) return finish(true);
+
+  const ai = aiMove();
+  if (ai !== -1) board[ai] = BOT;
+
+  if (checkWin(BOT)) return finish(false);
+
+  render();
+}
+
+function finish(win) {
+  const promo = Math.floor(10000 + Math.random()*90000);
+  statusEl.textContent = win ? `🎉 Победа! ${promo}` : "😔 Проигрыш";
+  tg.sendData(win ? `win:${promo}` : "lose");
+  restartBtn.style.display = "block";
+  render();
+}
+
+restartBtn.onclick = () => {
+  board = Array(9).fill(EMPTY);
+  restartBtn.style.display = "none";
+  statusEl.textContent = "Ваш ход";
+  render();
+};
+
+render();
+</script>
+</body>
+</html>
